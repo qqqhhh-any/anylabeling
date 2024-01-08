@@ -1,35 +1,34 @@
-import os
 import copy
-import time
-import shutil
-import pathlib
-import logging
-import tempfile
-import zipfile
 import importlib.resources as pkg_resources
-from threading import Lock
+import logging
+import os
+import pathlib
+import shutil
+import ssl
+import tempfile
+import time
 import urllib.request
+import zipfile
+from threading import Lock
 
 import yaml
-from PyQt5.QtCore import QObject, QThread, pyqtSignal, pyqtSlot
 from PyQt5.QtCore import QCoreApplication
+from PyQt5.QtCore import QObject, QThread, pyqtSignal, pyqtSlot
 
+from anylabeling.config import get_config, save_config
 from anylabeling.configs import auto_labeling as auto_labeling_configs
 from anylabeling.services.auto_labeling.types import AutoLabelingResult
 from anylabeling.utils import GenericWorker
-
-from anylabeling.config import get_config, save_config
-
-import ssl
 
 ssl._create_default_https_context = (
     ssl._create_unverified_context
 )  # Prevent issue when downloading models behind a proxy
 
 
+
 class ModelManager(QObject):
     """Model manager"""
-
+    # TODO allow to load custom yolov5 model in torchscript
     MAX_NUM_CUSTOM_MODELS = 5
 
     model_configs_changed = pyqtSignal(list)

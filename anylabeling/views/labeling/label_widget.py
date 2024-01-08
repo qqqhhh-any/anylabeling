@@ -22,10 +22,7 @@ from PyQt5.QtWidgets import (
 )
 
 from anylabeling.services.auto_labeling.types import AutoLabelingMode
-
-from ...app_info import __appname__
 from . import utils
-from ...config import get_config, save_config
 from .label_file import LabelFile, LabelFileError
 from .logger import logger
 from .shape import Shape
@@ -41,6 +38,9 @@ from .widgets import (
     UniqueLabelQListWidget,
     ZoomWidget,
 )
+from .widgets.auto_labeling.auto_labeling_custom import MyAutoLabelingWidget
+from ...app_info import __appname__
+from ...config import get_config, save_config
 
 LABEL_COLORMAP = imgviz.label_colormap()
 
@@ -56,13 +56,13 @@ class LabelingWidget(LabelDialog):
     next_files_changed = QtCore.pyqtSignal(list)
 
     def __init__(
-        self,
-        parent=None,
-        config=None,
-        filename=None,
-        output=None,
-        output_file=None,
-        output_dir=None,
+            self,
+            parent=None,
+            config=None,
+            filename=None,
+            output=None,
+            output_file=None,
+            output_dir=None,
     ):
         self.parent = parent
         if output is not None:
@@ -691,6 +691,7 @@ class LabelingWidget(LabelDialog):
         fill_drawing.trigger()
 
         # AI Actions
+        # TODO add custom settings
         toggle_auto_labeling_widget = action(
             self.tr("&Auto Labeling"),
             self.toggle_auto_labeling_widget,
@@ -920,7 +921,10 @@ class LabelingWidget(LabelDialog):
         central_layout.setContentsMargins(0, 0, 0, 0)
         self.label_instruction = QLabel(self.get_labeling_instruction())
         self.label_instruction.setContentsMargins(0, 0, 0, 0)
+
+        # auto labeling
         self.auto_labeling_widget = AutoLabelingWidget(self)
+        # set sigs
         self.auto_labeling_widget.auto_segmentation_requested.connect(
             self.on_auto_segmentation_requested
         )
@@ -952,9 +956,16 @@ class LabelingWidget(LabelDialog):
             lambda: self.inform_next_files(self.filename)
         )
         self.auto_labeling_widget.hide()  # Hide by default
+
         central_layout.addWidget(self.label_instruction)
         central_layout.addWidget(self.auto_labeling_widget)
+
+        # # TODO 用自定义的AutoLabeling 控件
+        self.my_auto_labeling_widget = MyAutoLabelingWidget(self)
+        central_layout.addWidget(self.my_auto_labeling_widget)
+
         central_layout.addWidget(scroll_area)
+
         layout.addItem(central_layout)
 
         # Save central area for resize
@@ -975,9 +986,7 @@ class LabelingWidget(LabelDialog):
             "}"
         )
         self.shape_text_edit = QPlainTextEdit()
-        right_sidebar_layout.addWidget(
-            self.shape_text_label, 0, Qt.AlignCenter
-        )
+        right_sidebar_layout.addWidget(self.shape_text_label, 0, Qt.AlignCenter)
         right_sidebar_layout.addWidget(self.shape_text_edit)
         right_sidebar_layout.addWidget(self.flag_dock)
         right_sidebar_layout.addWidget(self.label_dock)
@@ -985,23 +994,15 @@ class LabelingWidget(LabelDialog):
         right_sidebar_layout.addWidget(self.file_dock)
         self.file_dock.setFeatures(QDockWidget.DockWidgetFloatable)
         dock_features = (
-            ~QDockWidget.DockWidgetMovable
-            | ~QDockWidget.DockWidgetFloatable
-            | ~QDockWidget.DockWidgetClosable
+                ~QDockWidget.DockWidgetMovable
+                | ~QDockWidget.DockWidgetFloatable
+                | ~QDockWidget.DockWidgetClosable
         )
         rev_dock_features = ~dock_features
-        self.label_dock.setFeatures(
-            self.label_dock.features() & rev_dock_features
-        )
-        self.file_dock.setFeatures(
-            self.file_dock.features() & rev_dock_features
-        )
-        self.flag_dock.setFeatures(
-            self.flag_dock.features() & rev_dock_features
-        )
-        self.shape_dock.setFeatures(
-            self.shape_dock.features() & rev_dock_features
-        )
+        self.label_dock.setFeatures(self.label_dock.features() & rev_dock_features)
+        self.file_dock.setFeatures(self.file_dock.features() & rev_dock_features)
+        self.flag_dock.setFeatures(self.flag_dock.features() & rev_dock_features)
+        self.shape_dock.setFeatures(self.shape_dock.features() & rev_dock_features)
 
         self.shape_text_edit.textChanged.connect(self.shape_text_changed)
 
@@ -1255,13 +1256,13 @@ class LabelingWidget(LabelDialog):
         self.actions.delete.setEnabled(not drawing)
 
     def toggle_draw_mode(
-        self, edit=True, create_mode="rectangle", disable_auto_labeling=True
+            self, edit=True, create_mode="rectangle", disable_auto_labeling=True
     ):
         # Disable auto labeling if needed
         if (
-            disable_auto_labeling
-            and self.auto_labeling_widget.auto_labeling_mode
-            != AutoLabelingMode.NONE
+                disable_auto_labeling
+                and self.auto_labeling_widget.auto_labeling_mode
+                != AutoLabelingMode.NONE
         ):
             self.clear_auto_labeling_marks()
             self.auto_labeling_widget.set_auto_labeling_mode(None)
@@ -1526,9 +1527,9 @@ class LabelingWidget(LabelDialog):
             label_id += self._config["shift_auto_shape_color"]
             return LABEL_COLORMAP[label_id % len(LABEL_COLORMAP)]
         if (
-            self._config["shape_color"] == "manual"
-            and self._config["label_colors"]
-            and label in self._config["label_colors"]
+                self._config["shape_color"] == "manual"
+                and self._config["label_colors"]
+                and label in self._config["label_colors"]
         ):
             return self._config["label_colors"][label]
         if self._config["default_shape_color"]:
@@ -1618,11 +1619,11 @@ class LabelingWidget(LabelDialog):
             format_shape(item.shape())
             for item in self.label_list
             if item.shape().label
-            not in [
-                AutoLabelingMode.OBJECT,
-                AutoLabelingMode.ADD,
-                AutoLabelingMode.REMOVE,
-            ]
+               not in [
+                   AutoLabelingMode.OBJECT,
+                   AutoLabelingMode.ADD,
+                   AutoLabelingMode.REMOVE,
+               ]
         ]
         flags = {}
         for i in range(self.flag_widget.count()):
@@ -1719,9 +1720,9 @@ class LabelingWidget(LabelDialog):
         ]:
             text = self.canvas.shapes[-1].label
         elif (
-            self._config["display_label_popup"]
-            or not text
-            or self.canvas.shapes[-1].label == AutoLabelingMode.OBJECT
+                self._config["display_label_popup"]
+                or not text
+                or self.canvas.shapes[-1].label == AutoLabelingMode.OBJECT
         ):
             last_label = self.find_last_label()
             if self._config["auto_use_last_label"] and last_label:
@@ -1907,8 +1908,8 @@ class LabelingWidget(LabelDialog):
 
         # Changing file_list_widget loads file
         if filename in self.image_list and (
-            self.file_list_widget.currentRow()
-            != self.image_list.index(filename)
+                self.file_list_widget.currentRow()
+                != self.image_list.index(filename)
         ):
             self.file_list_widget.setCurrentRow(
                 self.image_list.index(filename)
@@ -1937,7 +1938,7 @@ class LabelingWidget(LabelDialog):
             label_file_without_path = osp.basename(label_file)
             label_file = osp.join(self.output_dir, label_file_without_path)
         if QtCore.QFile.exists(label_file) and LabelFile.is_label_file(
-            label_file
+                label_file
         ):
             try:
                 self.label_file = LabelFile(label_file)
@@ -2048,9 +2049,9 @@ class LabelingWidget(LabelDialog):
     # QT Overload
     def resizeEvent(self, _):
         if (
-            self.canvas
-            and not self.image.isNull()
-            and self.zoom_mode != self.MANUAL_ZOOM
+                self.canvas
+                and not self.image.isNull()
+                and self.zoom_mode != self.MANUAL_ZOOM
         ):
             self.adjust_scale()
 
@@ -2129,7 +2130,7 @@ class LabelingWidget(LabelDialog):
     def open_prev_image(self, _value=False):
         keep_prev = self._config["keep_prev"]
         if QtWidgets.QApplication.keyboardModifiers() == (
-            Qt.ControlModifier | Qt.ShiftModifier
+                Qt.ControlModifier | Qt.ShiftModifier
         ):
             self._config["keep_prev"] = True
             save_config(self._config)
@@ -2155,7 +2156,7 @@ class LabelingWidget(LabelDialog):
     def open_next_image(self, _value=False, load=True):
         keep_prev = self._config["keep_prev"]
         if QtWidgets.QApplication.keyboardModifiers() == (
-            Qt.ControlModifier | Qt.ShiftModifier
+                Qt.ControlModifier | Qt.ShiftModifier
         ):
             self._config["keep_prev"] = True
             save_config(self._config)
@@ -2411,7 +2412,7 @@ class LabelingWidget(LabelDialog):
             "You are about to permanently delete {} polygons, proceed anyway?"
         ).format(len(self.canvas.selected_shapes))
         if yes == QtWidgets.QMessageBox.warning(
-            self, self.tr("Attention"), msg, yes | no, yes
+                self, self.tr("Attention"), msg, yes | no, yes
         ):
             self.remove_labels(self.canvas.delete_selected())
             self.set_dirty()
@@ -2470,7 +2471,7 @@ class LabelingWidget(LabelDialog):
         self.filename = None
         for file in image_files:
             if file in self.image_list or not file.lower().endswith(
-                tuple(extensions)
+                    tuple(extensions)
             ):
                 continue
             label_file = osp.splitext(file)[0] + ".json"
@@ -2480,7 +2481,7 @@ class LabelingWidget(LabelDialog):
             item = QtWidgets.QListWidgetItem(file)
             item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
             if QtCore.QFile.exists(label_file) and LabelFile.is_label_file(
-                label_file
+                    label_file
             ):
                 item.setCheckState(Qt.Checked)
             else:
@@ -2513,7 +2514,7 @@ class LabelingWidget(LabelDialog):
             item = QtWidgets.QListWidgetItem(filename)
             item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
             if QtCore.QFile.exists(label_file) and LabelFile.is_label_file(
-                label_file
+                    label_file
             ):
                 item.setCheckState(Qt.Checked)
             else:
@@ -2585,7 +2586,7 @@ class LabelingWidget(LabelDialog):
             AutoLabelingMode.REMOVE,
         ]:
             for item in self.unique_label_list.find_items_by_label(
-                shape_label
+                    shape_label
             ):
                 self.unique_label_list.takeItem(
                     self.unique_label_list.row(item)
@@ -2596,11 +2597,11 @@ class LabelingWidget(LabelDialog):
             shape
             for shape in self.canvas.shapes
             if shape.label
-            not in [
-                AutoLabelingMode.OBJECT,
-                AutoLabelingMode.ADD,
-                AutoLabelingMode.REMOVE,
-            ]
+               not in [
+                   AutoLabelingMode.OBJECT,
+                   AutoLabelingMode.ADD,
+                   AutoLabelingMode.REMOVE,
+               ]
         ]
         self.canvas.update()
 
